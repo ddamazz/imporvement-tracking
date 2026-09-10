@@ -13,7 +13,8 @@ Anyone with the link can edit. The whole app sits behind one shared password.
   **effort** (trivial / small / medium / large) and **status** (open / in
   progress / done).
 - **Screenshots** — paste from the clipboard (⌘V), drag and drop, or browse.
-  Several per issue, reorderable, click to view full size.
+  Several per issue, reorderable, click to view full size. Stored in a
+  **private** Blob store and served only to signed-in viewers.
 - **List and board views** — drag to reorder in list view; in board view drag
   cards between columns to change status or priority.
 - **Filter and sort** — by priority and status; manual order, priority, or newest.
@@ -35,7 +36,7 @@ npm run dev
 | Variable                | Where it comes from                                            |
 | ----------------------- | -------------------------------------------------------------- |
 | `DATABASE_URL`          | Neon → your project → the **pooled** connection string          |
-| `BLOB_READ_WRITE_TOKEN` | Vercel → Storage → create a Blob store → `vercel env pull`      |
+| `BLOB_READ_WRITE_TOKEN` | Vercel → Storage → create a **private** Blob store → `vercel env pull` |
 | `TRAKKER_PASSWORD`      | The shared password. Set to `form999`.                          |
 | `AUTH_SECRET`           | `openssl rand -hex 32`. Changing it signs everyone out.         |
 
@@ -49,6 +50,11 @@ vercel --prod
 ```
 
 Run `npm run db:push` once against the production database before first use.
+
+Create the Blob store from the project's **Storage** tab; Vercel then injects
+`BLOB_READ_WRITE_TOKEN` itself. Choose **private** access — the app expects it,
+and it keeps screenshots behind the password. Redeploy afterwards, since
+environment variables only reach new deployments.
 
 ## How it fits together
 
@@ -65,10 +71,19 @@ Run `npm run db:push` once against the production database before first use.
 - **`src/db/`** — Drizzle schema and a lazily-created Neon client. The
   `neon-http` driver has **no interactive transactions**, so multi-row writes go
   through `db.batch([...])`, which Neon runs atomically.
-- **Uploads** go straight from the browser to Blob storage; the app only signs a
-  short-lived token at `/api/blob/upload`. Screenshots routinely exceed the
-  4.5 MB serverless request-body limit, which is why they don't pass through
-  the server.
+- **Uploads** post to `/api/images/upload`, which stores the file with
+  `put()`. The SDK's client-side `upload()` is not usable from a browser: it
+  PUTs to `vercel.com/api/blob`, which sends no `Access-Control-Allow-Origin`
+  header, so the request is blocked by CORS. To stay inside Vercel's 4.5 MB
+  request-body limit, `src/lib/images.ts` shrinks oversized screenshots on the
+  client first (max 2400px, WebP) and leaves smaller ones untouched.
+- **Serving images**: the Blob store is **private**, so its URLs return 403 to
+  anyone. `/api/images/[id]` checks the session, looks the blob URL up in the
+  database by row id, and streams it back. Screenshots therefore sit behind the
+  same password as the rest of the app. The id lookup also means the route
+  can't be pointed at an arbitrary host.
+- **Storage hygiene**: an image uploaded and then removed before saving is
+  deleted from Blob, and deleting an issue or page deletes its files too.
 
 ## Scripts
 

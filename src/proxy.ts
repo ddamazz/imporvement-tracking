@@ -24,9 +24,9 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except the login page, the blob-token route (which does its
-    // own auth so Vercel's upload-completed callback can still reach it),
-    // Next internals, and static assets.
-    "/((?!login|api/blob|_next/static|_next/image|favicon.ico|icon.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // Everything except the login page, API routes (which check the session
+    // themselves and answer 401 rather than redirecting an fetch/img to
+    // HTML), Next internals, and static assets.
+    "/((?!login|api/|_next/static|_next/image|favicon.ico|icon.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

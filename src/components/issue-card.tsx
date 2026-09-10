@@ -6,6 +6,7 @@ import type {
   DraggableSyntheticListeners,
 } from "@dnd-kit/core";
 import type { IssueWithImages } from "@/db/schema";
+import { imageSrc } from "@/lib/images";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
 
 /** Shared card body so list and board rows look identical. */
@@ -30,7 +31,7 @@ export function IssueCardBody({
           aria-label="View screenshot"
           onClick={(event) => {
             event.stopPropagation();
-            onPreview(firstImage.url);
+            onPreview(imageSrc(firstImage.id));
           }}
           className={`relative shrink-0 overflow-hidden rounded-md border border-line bg-surface-2 ${
             compact ? "h-12 w-16" : "h-14 w-20"
@@ -38,7 +39,7 @@ export function IssueCardBody({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={firstImage.url}
+            src={imageSrc(firstImage.id)}
             alt=""
             className="size-full cursor-zoom-in object-cover"
           />

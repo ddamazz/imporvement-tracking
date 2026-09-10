@@ -13,7 +13,8 @@ import {
 } from "@/lib/constants";
 import { deleteIssue, discardBlobs, saveIssue } from "@/lib/actions";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
-import { ImageDropzone, type StagedImage } from "./image-dropzone";
+import { ImageDropzone } from "./image-dropzone";
+import { imageSrc, type StagedImage } from "@/lib/images";
 import { Lightbox } from "./lightbox";
 import { OptionPicker } from "./option-picker";
 
@@ -35,15 +36,29 @@ export function IssueEditor({
     issue?.images.map((image) => ({
       url: image.url,
       pathname: image.pathname,
+      previewUrl: imageSrc(image.id),
     })) ?? [],
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
-  // Blobs uploaded during this session; discarded if the editor is cancelled.
+  // Blobs uploaded during this session, tracked so unused ones get cleaned up.
   const uploadedRef = useRef<StagedImage[]>([]);
-  const originalUrls = useRef(new Set(issue?.images.map((i) => i.url) ?? []));
+
+  /**
+   * Blobs uploaded in this session that aren't in the given final list. Saving
+   * only removes stored files for images that already had a database row, so
+   * anything uploaded and then removed has to be cleaned up from here.
+   */
+  function discardUnused(keep: StagedImage[]) {
+    const orphans = uploadedRef.current
+      .filter((image) => !keep.some((kept) => kept.url === image.url))
+      .map((image) => image.url);
+    if (orphans.length > 0) {
+      void discardBlobs(orphans);
+    }
+  }
 
   async function handleSave() {
     if (saving) return;
@@ -58,10 +73,11 @@ export function IssueEditor({
       priority,
       effort,
       status,
-      images,
+      images: images.map(({ url, pathname }) => ({ url, pathname })),
     });
 
     if (result.ok) {
+      discardUnused(images);
       onClose();
     } else {
       setError(result.error);
@@ -70,13 +86,8 @@ export function IssueEditor({
   }
 
   function handleCancel() {
-    // Anything uploaded but not saved would otherwise sit in Blob forever.
-    const orphans = uploadedRef.current
-      .filter((image) => !originalUrls.current.has(image.url))
-      .map((image) => image.url);
-    if (orphans.length > 0) {
-      void discardBlobs(orphans);
-    }
+    // Nothing was saved, so every upload from this session is an orphan.
+    discardUnused([]);
     onClose();
   }
 

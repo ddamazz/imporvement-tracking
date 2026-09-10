@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
 import { ChevronLeft, ChevronRight, ImagePlus, Loader2, X } from "lucide-react";
-
-export type StagedImage = { url: string; pathname: string };
+import { type StagedImage, uploadImage } from "@/lib/images";
 
 const ACCEPTED = [
   "image/png",
@@ -13,10 +11,6 @@ const ACCEPTED = [
   "image/webp",
   "image/avif",
 ];
-
-const MAX_BYTES = 15 * 1024 * 1024;
-
-type Uploading = { key: string; name: string; percentage: number };
 
 export function ImageDropzone({
   pageId,
@@ -33,7 +27,7 @@ export function ImageDropzone({
   onUploaded: (image: StagedImage) => void;
   onPreview: (url: string) => void;
 }) {
-  const [uploads, setUploads] = useState<Uploading[]>([]);
+  const [pending, setPending] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isOver, setIsOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,61 +36,27 @@ export function ImageDropzone({
     async (files: File[]) => {
       const usable = files.filter((file) => file.type.startsWith("image/"));
       if (usable.length === 0) return;
-
       setError(null);
 
       await Promise.all(
         usable.map(async (file) => {
-          if (!ACCEPTED.includes(file.type)) {
-            setError(`${file.type || "That file"} is not a supported image.`);
-            return;
-          }
-          if (file.size > MAX_BYTES) {
-            setError(`${file.name} is larger than 15 MB.`);
-            return;
-          }
-
           const key = `${file.name}-${crypto.randomUUID()}`;
-          setUploads((current) => [
-            ...current,
-            { key, name: file.name, percentage: 0 },
-          ]);
-
+          setPending((current) => [...current, key]);
           try {
-            const blob = await upload(
-              `audits/${pageId}/${file.name || "screenshot.png"}`,
-              file,
-              {
-                access: "public",
-                handleUploadUrl: "/api/blob/upload",
-                contentType: file.type,
-                onUploadProgress: ({ percentage }) => {
-                  setUploads((current) =>
-                    current.map((item) =>
-                      item.key === key ? { ...item, percentage } : item,
-                    ),
-                  );
-                },
-              },
-            );
-
-            const staged = { url: blob.url, pathname: blob.pathname };
+            const blob = await uploadImage(file, pageId);
+            // Preview from the local file: the stored blob is private and only
+            // gets an /api/images/<id> URL once the issue is saved.
+            const staged = { ...blob, previewUrl: URL.createObjectURL(file) };
             onUploaded(staged);
             onChange((current) => [...current, staged]);
           } catch (cause) {
-            const message =
+            setError(
               cause instanceof Error
                 ? cause.message
-                : `Could not upload ${file.name}.`;
-            // The token route fails this way when the Blob store isn't set up,
-            // which is the most likely cause on a fresh checkout.
-            setError(
-              /client token/i.test(message)
-                ? "Image uploads aren't configured yet — add BLOB_READ_WRITE_TOKEN to .env.local and restart the server."
-                : message,
+                : `Could not upload ${file.name}.`,
             );
           } finally {
-            setUploads((current) => current.filter((item) => item.key !== key));
+            setPending((current) => current.filter((item) => item !== key));
           }
         }),
       );
@@ -104,14 +64,16 @@ export function ImageDropzone({
     [pageId, onChange, onUploaded],
   );
 
-  // Paste a screenshot straight in — the whole point of the tool.
+  // Paste a screenshot straight in — the whole point of the tool. Bound to the
+  // document so it works while the caret is in the title or description.
   useEffect(() => {
     function onPaste(event: ClipboardEvent) {
-      const files = Array.from(event.clipboardData?.files ?? []);
-      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-      if (imageFiles.length === 0) return;
+      const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
+        file.type.startsWith("image/"),
+      );
+      if (files.length === 0) return;
       event.preventDefault();
-      void uploadFiles(imageFiles);
+      void uploadFiles(files);
     }
 
     document.addEventListener("paste", onPaste);
@@ -145,21 +107,21 @@ export function ImageDropzone({
           isOver ? "border-accent bg-accent/5" : "border-line"
         }`}
       >
-        {images.length > 0 || uploads.length > 0 ? (
+        {images.length > 0 || pending.length > 0 ? (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {images.map((image, index) => (
               <div
                 key={image.url}
                 className="group relative aspect-4/3 overflow-hidden rounded-md border border-line bg-surface-2"
               >
-                {/* Blob URLs are remote and arbitrary in size; a plain img keeps
-                    this simple and avoids optimizing throwaway screenshots. */}
+                {/* Screenshots are arbitrary throwaway sizes behind an auth
+                    proxy, so next/image optimisation buys nothing here. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={image.url}
+                  src={image.previewUrl}
                   alt=""
                   className="size-full cursor-zoom-in object-cover"
-                  onClick={() => onPreview(image.url)}
+                  onClick={() => onPreview(image.previewUrl)}
                 />
                 <button
                   type="button"
@@ -196,15 +158,12 @@ export function ImageDropzone({
               </div>
             ))}
 
-            {uploads.map((item) => (
+            {pending.map((key) => (
               <div
-                key={item.key}
+                key={key}
                 className="grid aspect-4/3 place-items-center rounded-md border border-line bg-surface-2 text-muted"
               >
-                <div className="flex flex-col items-center gap-1">
-                  <Loader2 size={16} className="animate-spin" />
-                  <span className="text-[10px]">{item.percentage}%</span>
-                </div>
+                <Loader2 size={16} className="animate-spin" />
               </div>
             ))}
 
@@ -226,7 +185,7 @@ export function ImageDropzone({
             <span className="text-xs font-medium">
               Paste a screenshot, drop files, or click to browse
             </span>
-            <span className="text-[11px]">PNG, JPG, GIF, WebP up to 15 MB</span>
+            <span className="text-[11px]">PNG, JPG, GIF, WebP</span>
           </button>
         )}
       </div>
