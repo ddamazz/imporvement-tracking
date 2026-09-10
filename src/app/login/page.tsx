@@ -16,10 +16,22 @@ export default async function LoginPage(props: PageProps<"/login">) {
     <main className="flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex size-11 items-center justify-center rounded-xl bg-text text-lg font-semibold text-bg">
-            T
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight">Trakker</h1>
+          <div
+            role="img"
+            aria-label="Trakker"
+            className="mx-auto mb-4 h-auto w-[140px] bg-text"
+            style={{
+              aspectRatio: "2172 / 724",
+              WebkitMaskImage: "url(/trakker_logo.png)",
+              maskImage: "url(/trakker_logo.png)",
+              WebkitMaskRepeat: "no-repeat",
+              maskRepeat: "no-repeat",
+              WebkitMaskSize: "contain",
+              maskSize: "contain",
+              WebkitMaskPosition: "center",
+              maskPosition: "center",
+            }}
+          />
           <p className="mt-1 text-sm text-muted">
             Enter the shared password to continue.
           </p>

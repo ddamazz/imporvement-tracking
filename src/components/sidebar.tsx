@@ -73,11 +73,23 @@ export function Sidebar({ pages }: { pages: Page[] }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 px-3 py-3">
-        <div className="grid size-6 place-items-center rounded-md bg-text text-[11px] font-bold text-bg">
-          T
-        </div>
-        <span className="text-sm font-semibold tracking-tight">Trakker</span>
+      <div className="flex items-center px-3 py-3">
+        <div
+          role="img"
+          aria-label="Trakker"
+          className="h-auto w-[140px] shrink-0 bg-text"
+          style={{
+            aspectRatio: "2172 / 724",
+            WebkitMaskImage: "url(/trakker_logo.png)",
+            maskImage: "url(/trakker_logo.png)",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskPosition: "left center",
+            maskPosition: "left center",
+          }}
+        />
       </div>
 
       <div className="flex items-center justify-between px-3 pb-1 pt-2">

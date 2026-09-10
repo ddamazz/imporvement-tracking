@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Scales every rem-based Tailwind utility (text, padding, gaps, radii) by
+   20% at once, since the whole UI read too small/cramped. */
+html {
+  font-size: 120%;
+}
+
 :root {
   --bg: #ffffff;
   --surface: #ffffff;
