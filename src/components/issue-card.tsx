@@ -63,15 +63,25 @@ export function IssueCardBody({
       <button
         type="button"
         onClick={onOpen}
-        className="min-w-0 flex-1 text-left"
+        className={`flex min-w-0 flex-1 text-left ${
+          compact
+            ? "flex-col items-stretch"
+            : "items-start justify-between gap-3"
+        }`}
       >
-        <p className="truncate text-sm font-medium">{issue.title}</p>
-        {issue.description ? (
-          <p className="mt-0.5 line-clamp-2 text-xs text-muted">
-            {issue.description}
-          </p>
-        ) : null}
-        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{issue.title}</p>
+          {issue.description ? (
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted">
+              {issue.description}
+            </p>
+          ) : null}
+        </div>
+        <div
+          className={`flex shrink-0 flex-wrap items-center gap-1 ${
+            compact ? "mt-1.5" : "justify-end"
+          }`}
+        >
           <PriorityChip value={issue.priority} />
           <EffortChip value={issue.effort} />
           {!compact ? <StatusChip value={issue.status} /> : null}
