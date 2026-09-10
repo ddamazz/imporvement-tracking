@@ -41,7 +41,9 @@ export function IssueCardBody({
           <img
             src={imageSrc(firstImage.id)}
             alt=""
-            className="size-full cursor-zoom-in object-cover"
+            // `contain` so wide screenshots stay recognisable instead of
+            // showing a cropped sliver of their middle.
+            className="size-full cursor-zoom-in object-contain"
           />
           {restImages.length > 0 ? (
             <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-[10px] font-medium text-white">

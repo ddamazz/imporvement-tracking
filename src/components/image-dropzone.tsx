@@ -120,7 +120,10 @@ export function ImageDropzone({
                 <img
                   src={image.previewUrl}
                   alt=""
-                  className="size-full cursor-zoom-in object-cover"
+                  // `contain`, not `cover`: audit screenshots are often very
+                  // wide, and cropping to the centre of a 4:3 box can hide the
+                  // very thing the screenshot was taken to show.
+                  className="size-full cursor-zoom-in object-contain"
                   onClick={() => onPreview(image.previewUrl)}
                 />
                 <button
