@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f7f7f5;
+  --surface-3: #eeeeec;
+  --line: #e6e6e3;
+  --text: #1f1f1e;
+  --muted: #78786f;
+  --accent: #2f6feb;
+  --accent-contrast: #ffffff;
+  --shadow-card: 0 1px 2px rgb(15 15 15 / 0.06), 0 1px 1px rgb(15 15 15 / 0.04);
+  --shadow-pop: 0 10px 38px rgb(15 15 15 / 0.14), 0 3px 10px rgb(15 15 15 / 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #191919;
+    --surface: #202020;
+    --surface-2: #171717;
+    --surface-3: #2c2c2c;
+    --line: #303030;
+    --text: #e9e9e6;
+    --muted: #93938c;
+    --accent: #5b8cf5;
+    --accent-contrast: #10131a;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-pop: 0 10px 38px rgb(0 0 0 / 0.5), 0 3px 10px rgb(0 0 0 / 0.4);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* These live in `base` so Tailwind's utilities still win. Unlayered rules beat
+   anything inside @layer, which would silently override every text-colour
+   utility on buttons and inputs. */
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Form controls inherit the theme rather than the browser's own chrome. */
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Subtle scrollbars so board columns and long lists stay quiet. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--line);
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
