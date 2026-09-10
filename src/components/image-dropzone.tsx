@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImagePlus, Loader2, X } from "lucide-react";
 import { type StagedImage, uploadImage } from "@/lib/images";
+import { Screenshot } from "./screenshot";
 
 const ACCEPTED = [
   "image/png",
@@ -114,15 +115,11 @@ export function ImageDropzone({
                 key={image.url}
                 className="group relative aspect-4/3 overflow-hidden rounded-md border border-line bg-surface-2"
               >
-                {/* Screenshots are arbitrary throwaway sizes behind an auth
-                    proxy, so next/image optimisation buys nothing here. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                {/* `contain`, not `cover`: audit screenshots are often very
+                    wide, and cropping to the centre of a 4:3 box can hide the
+                    very thing the screenshot was taken to show. */}
+                <Screenshot
                   src={image.previewUrl}
-                  alt=""
-                  // `contain`, not `cover`: audit screenshots are often very
-                  // wide, and cropping to the centre of a 4:3 box can hide the
-                  // very thing the screenshot was taken to show.
                   className="size-full cursor-zoom-in object-contain"
                   onClick={() => onPreview(image.previewUrl)}
                 />

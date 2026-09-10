@@ -31,11 +31,26 @@ export async function GET(
 
   if (!row) return new Response("Not found", { status: 404 });
 
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    // Worth saying out loud: a missing token here looks exactly like a broken
+    // image in the UI, which is very hard to guess at.
+    console.error(
+      "BLOB_READ_WRITE_TOKEN is not set, so stored screenshots cannot be read. " +
+        "Connect the Blob store to this project and redeploy.",
+    );
+    return new Response("Image storage is not configured", { status: 503 });
+  }
+
   const upstream = await fetch(row.url, {
-    headers: { authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
+    headers: { authorization: `Bearer ${token}` },
   });
 
   if (!upstream.ok || !upstream.body) {
+    console.error(
+      `Blob storage refused ${row.url} with ${upstream.status}. ` +
+        "If this is 401/403 the BLOB_READ_WRITE_TOKEN belongs to a different store.",
+    );
     return new Response("Image unavailable", { status: 502 });
   }
 

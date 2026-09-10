@@ -8,6 +8,7 @@ import type {
 import type { IssueWithImages } from "@/db/schema";
 import { imageSrc } from "@/lib/images";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
+import { Screenshot } from "./screenshot";
 
 /** Shared card body so list and board rows look identical. */
 export function IssueCardBody({
@@ -37,12 +38,10 @@ export function IssueCardBody({
             compact ? "h-12 w-16" : "h-14 w-20"
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          {/* `contain` so wide screenshots stay recognisable instead of
+              showing a cropped sliver of their middle. */}
+          <Screenshot
             src={imageSrc(firstImage.id)}
-            alt=""
-            // `contain` so wide screenshots stay recognisable instead of
-            // showing a cropped sliver of their middle.
             className="size-full cursor-zoom-in object-contain"
           />
           {restImages.length > 0 ? (
