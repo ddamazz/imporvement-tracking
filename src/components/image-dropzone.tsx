@@ -5,6 +5,18 @@ import { ChevronLeft, ChevronRight, ImagePlus, Loader2, X } from "lucide-react";
 import { type StagedImage, uploadImage } from "@/lib/images";
 import { Screenshot } from "./screenshot";
 
+/**
+ * Whether focus currently sits inside the given element. Used to decide which
+ * dropzone a paste belongs to when an issue and a comment are both collecting
+ * images on the same screen.
+ */
+export function hasFocusWithin(
+  ref: React.RefObject<HTMLElement | null>,
+): boolean {
+  const node = ref.current;
+  return Boolean(node && document.activeElement && node.contains(document.activeElement));
+}
+
 const ACCEPTED = [
   "image/png",
   "image/jpeg",
@@ -19,6 +31,9 @@ export function ImageDropzone({
   onChange,
   onUploaded,
   onPreview,
+  capturePaste,
+  compact = false,
+  emptyLabel = "Paste a screenshot, drop files, or click to browse",
 }: {
   pageId: string;
   images: StagedImage[];
@@ -27,6 +42,14 @@ export function ImageDropzone({
   /** Reports every successful upload so the editor can clean up on cancel. */
   onUploaded: (image: StagedImage) => void;
   onPreview: (url: string) => void;
+  /**
+   * Consulted on every paste, so two dropzones on one screen can agree on
+   * which of them the image was meant for. Always claims it when omitted.
+   */
+  capturePaste?: () => boolean;
+  /** A tighter grid and a one-line prompt, for the comment composer. */
+  compact?: boolean;
+  emptyLabel?: string;
 }) {
   const [pending, setPending] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +92,7 @@ export function ImageDropzone({
   // document so it works while the caret is in the title or description.
   useEffect(() => {
     function onPaste(event: ClipboardEvent) {
+      if (capturePaste && !capturePaste()) return;
       const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
         file.type.startsWith("image/"),
       );
@@ -79,7 +103,7 @@ export function ImageDropzone({
 
     document.addEventListener("paste", onPaste);
     return () => document.removeEventListener("paste", onPaste);
-  }, [uploadFiles]);
+  }, [uploadFiles, capturePaste]);
 
   function move(index: number, delta: number) {
     onChange((current) => {
@@ -109,7 +133,11 @@ export function ImageDropzone({
         }`}
       >
         {images.length > 0 || pending.length > 0 ? (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <div
+            className={`grid gap-2 ${
+              compact ? "grid-cols-4 sm:grid-cols-6" : "grid-cols-3 sm:grid-cols-4"
+            }`}
+          >
             {images.map((image, index) => (
               <div
                 key={image.url}
@@ -175,6 +203,15 @@ export function ImageDropzone({
               <ImagePlus size={16} />
             </button>
           </div>
+        ) : compact ? (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-muted hover:text-text"
+          >
+            <ImagePlus size={14} />
+            <span className="text-[11px] font-medium">{emptyLabel}</span>
+          </button>
         ) : (
           <button
             type="button"
@@ -182,9 +219,7 @@ export function ImageDropzone({
             className="flex w-full flex-col items-center gap-1 rounded-md px-3 py-6 text-muted hover:text-text"
           >
             <ImagePlus size={18} />
-            <span className="text-xs font-medium">
-              Paste a screenshot, drop files, or click to browse
-            </span>
+            <span className="text-xs font-medium">{emptyLabel}</span>
             <span className="text-[11px]">PNG, JPG, GIF, WebP</span>
           </button>
         )}

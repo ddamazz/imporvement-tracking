@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState } from "react";
-import type { IssueWithImages } from "@/db/schema";
+import type { IssueWithDetails } from "@/db/schema";
 import { DragHandle, IssueCardBody } from "./issue-card";
 
 export function IssueList({
@@ -27,10 +27,10 @@ export function IssueList({
   onPreview,
   onReorder,
 }: {
-  issues: IssueWithImages[];
+  issues: IssueWithDetails[];
   /** Reordering only makes sense while the list is in manual order. */
   sortable: boolean;
-  onOpen: (issue: IssueWithImages) => void;
+  onOpen: (issue: IssueWithDetails) => void;
   onPreview: (url: string) => void;
   onReorder: (orderedIds: string[]) => void;
 }) {
@@ -106,7 +106,7 @@ function IssueRow({
   onOpen,
   onPreview,
 }: {
-  issue: IssueWithImages;
+  issue: IssueWithDetails;
   sortable: boolean;
   onOpen: () => void;
   onPreview: (url: string) => void;

@@ -1,9 +1,6 @@
-import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
-import { db } from "@/db";
-import { images } from "@/db/schema";
 import { hasSession } from "@/lib/session";
-import { isUuid } from "@/lib/queries";
+import { findImageUrl } from "@/lib/queries";
 
 /**
  * Streams a private blob to a signed-in viewer.
@@ -11,6 +8,7 @@ import { isUuid } from "@/lib/queries";
  * The Blob store is private, so screenshots sit behind the same password as
  * everything else. The URL is looked up from the database by row id rather
  * than taken from the request, so this can't be pointed at an arbitrary host.
+ * Serves issue screenshots and comment attachments alike.
  */
 export async function GET(
   _request: NextRequest,
@@ -21,15 +19,8 @@ export async function GET(
   }
 
   const { id } = await ctx.params;
-  if (!isUuid(id)) return new Response("Not found", { status: 404 });
-
-  const [row] = await db
-    .select({ url: images.url })
-    .from(images)
-    .where(eq(images.id, id))
-    .limit(1);
-
-  if (!row) return new Response("Not found", { status: 404 });
+  const url = await findImageUrl(id);
+  if (!url) return new Response("Not found", { status: 404 });
 
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) {
@@ -42,13 +33,13 @@ export async function GET(
     return new Response("Image storage is not configured", { status: 503 });
   }
 
-  const upstream = await fetch(row.url, {
+  const upstream = await fetch(url, {
     headers: { authorization: `Bearer ${token}` },
   });
 
   if (!upstream.ok || !upstream.body) {
     console.error(
-      `Blob storage refused ${row.url} with ${upstream.status}. ` +
+      `Blob storage refused ${url} with ${upstream.status}. ` +
         "If this is 401/403 the BLOB_READ_WRITE_TOKEN belongs to a different store.",
     );
     return new Response("Image unavailable", { status: 502 });

@@ -7,7 +7,7 @@ import { del } from "@vercel/blob";
 import { and, asc, eq, inArray, max } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { db } from "@/db";
-import { images, issues, pages } from "@/db/schema";
+import { commentImages, comments, images, issues, pages } from "@/db/schema";
 import {
   SESSION_COOKIE,
   SESSION_COOKIE_OPTIONS,
@@ -15,6 +15,12 @@ import {
   sessionToken,
 } from "./auth";
 import { assertSession } from "./session";
+import { isUuid } from "./queries";
+import {
+  ANONYMOUS_AUTHOR,
+  MAX_COMMENT_LENGTH,
+  normaliseAuthor,
+} from "./author";
 import {
   type Effort,
   type Priority,
@@ -37,6 +43,17 @@ function refresh() {
 async function batchAll(writes: BatchItem<"pg">[]) {
   if (writes.length === 0) return;
   await db.batch(writes as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
+}
+
+/** Every comment attachment under the given issues. */
+async function attachmentUrls(issueIds: string[]): Promise<string[]> {
+  if (issueIds.length === 0) return [];
+  const rows = await db
+    .select({ url: commentImages.url })
+    .from(commentImages)
+    .innerJoin(comments, eq(commentImages.commentId, comments.id))
+    .where(inArray(comments.issueId, issueIds));
+  return rows.map((row) => row.url);
 }
 
 /** Blob cleanup must never block a database delete. */
@@ -125,8 +142,14 @@ export async function deletePage(id: string) {
     .innerJoin(issues, eq(images.issueId, issues.id))
     .where(eq(issues.pageId, id));
 
+  const pageIssues = await db
+    .select({ id: issues.id })
+    .from(issues)
+    .where(eq(issues.pageId, id));
+  const attachments = await attachmentUrls(pageIssues.map((row) => row.id));
+
   await db.delete(pages).where(eq(pages.id, id));
-  await removeBlobs(doomed.map((row) => row.url));
+  await removeBlobs([...doomed.map((row) => row.url), ...attachments]);
 
   const [next] = await db
     .select({ id: pages.id })
@@ -294,9 +317,10 @@ export async function deleteIssue(id: string) {
     .select({ url: images.url })
     .from(images)
     .where(eq(images.issueId, id));
+  const attachments = await attachmentUrls([id]);
 
   await db.delete(issues).where(eq(issues.id, id));
-  await removeBlobs(doomed.map((row) => row.url));
+  await removeBlobs([...doomed.map((row) => row.url), ...attachments]);
   refresh();
 }
 
@@ -313,6 +337,70 @@ export async function reorderIssues(pageId: string, orderedIds: string[]) {
     ),
   );
 
+  refresh();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Comments                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export type CommentInput = {
+  issueId: string;
+  /** Whatever the browser has remembered in its author cookie. */
+  author: string;
+  body: string;
+  images: { url: string; pathname: string }[];
+};
+
+type CommentResult = { ok: true; id: string } | { ok: false; error: string };
+
+export async function addComment(input: CommentInput): Promise<CommentResult> {
+  await assertSession();
+
+  if (!isUuid(input.issueId)) return { ok: false, error: "Unknown issue." };
+
+  const body = input.body.trim();
+  if (!body && input.images.length === 0) {
+    return { ok: false, error: "Write something, or attach an image." };
+  }
+  if (body.length > MAX_COMMENT_LENGTH) {
+    return { ok: false, error: "That comment is too long." };
+  }
+
+  // The name is a label, not an identity — there are no accounts to check it
+  // against, so it is only trimmed and capped.
+  const author = normaliseAuthor(input.author) || ANONYMOUS_AUTHOR;
+
+  const [created] = await db
+    .insert(comments)
+    .values({ issueId: input.issueId, author, body })
+    .returning({ id: comments.id });
+
+  await batchAll(
+    input.images.map((image, index) =>
+      db.insert(commentImages).values({
+        commentId: created.id,
+        url: image.url,
+        pathname: image.pathname,
+        position: index,
+      }),
+    ),
+  );
+
+  refresh();
+  return { ok: true, id: created.id };
+}
+
+export async function deleteComment(id: string) {
+  await assertSession();
+
+  const doomed = await db
+    .select({ url: commentImages.url })
+    .from(commentImages)
+    .where(eq(commentImages.commentId, id));
+
+  await db.delete(comments).where(eq(comments.id, id));
+  await removeBlobs(doomed.map((row) => row.url));
   refresh();
 }
 

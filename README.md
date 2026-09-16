@@ -15,6 +15,10 @@ Anyone with the link can edit. The whole app sits behind one shared password.
 - **Screenshots** — paste from the clipboard (⌘V), drag and drop, or browse.
   Several per issue, reorderable, click to view full size. Stored in a
   **private** Blob store and served only to signed-in viewers.
+- **Comments** — discuss an issue in its editor. You type your name once into
+  **Comment as**; it is kept in a cookie, so each browser has its own name and
+  nobody has to sign up. Attach images, and copy a link to any single comment
+  to share it.
 - **List and board views** — drag to reorder in list view; in board view drag
   cards between columns to change status or priority.
 - **Filter and sort** — by priority and status; manual order, priority, or newest.
@@ -67,7 +71,15 @@ environment variables only reach new deployments.
 - **`src/lib/auth.ts`** — the session cookie is an HMAC of a fixed subject, so
   it can't be forged by hand the way an `authed=true` flag could.
 - **`src/lib/actions.ts`** — all mutations. Deleting an issue or page also
-  deletes its blobs, so storage doesn't leak.
+  deletes its blobs — screenshots and comment attachments alike — so storage
+  doesn't leak.
+- **Comments** live in `comments` + `comment_images`, kept separate from an
+  issue's own `images` so a query can't mistake one for the other. There are no
+  accounts, so the author is just a label: `src/lib/author.ts` keeps it in a
+  script-readable `trakker_author` cookie, and the server only trims and caps
+  it. A comment's **Copy link** button produces
+  `/p/<page>?issue=<issue>&comment=<comment>`; opening it reopens that issue and
+  scrolls the comment into view.
 - **`src/db/`** — Drizzle schema and a lazily-created Neon client. The
   `neon-http` driver has **no interactive transactions**, so multi-row writes go
   through `db.batch([...])`, which Neon runs atomically.

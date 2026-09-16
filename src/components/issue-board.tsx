@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { IssueWithImages } from "@/db/schema";
+import type { IssueWithDetails } from "@/db/schema";
 import {
   PRIORITIES,
   PRIORITY_META,
@@ -36,9 +36,9 @@ export function IssueBoard({
   onPreview,
   onMove,
 }: {
-  issues: IssueWithImages[];
+  issues: IssueWithDetails[];
   groupBy: GroupBy;
-  onOpen: (issue: IssueWithImages) => void;
+  onOpen: (issue: IssueWithDetails) => void;
   onPreview: (url: string) => void;
   /** Applies a field change and/or a new global order in one go. */
   onMove: (args: {
@@ -65,7 +65,7 @@ export function IssueBoard({
           accent: PRIORITY_META[key].dot,
         }));
 
-  const columnOf = (issue: IssueWithImages) =>
+  const columnOf = (issue: IssueWithDetails) =>
     groupBy === "status" ? issue.status : issue.priority;
 
   function onDragEnd(event: DragEndEvent) {
@@ -165,9 +165,9 @@ function BoardColumn({
   id: string;
   label: string;
   accent: string;
-  issues: IssueWithImages[];
+  issues: IssueWithDetails[];
   groupBy: GroupBy;
-  onOpen: (issue: IssueWithImages) => void;
+  onOpen: (issue: IssueWithDetails) => void;
   onPreview: (url: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
@@ -211,7 +211,7 @@ function BoardCard({
   onOpen,
   onPreview,
 }: {
-  issue: IssueWithImages;
+  issue: IssueWithDetails;
   hideStatus: boolean;
   onOpen: () => void;
   onPreview: (url: string) => void;

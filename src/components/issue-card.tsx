@@ -1,11 +1,11 @@
 "use client";
 
-import { GripVertical, ImageIcon } from "lucide-react";
+import { GripVertical, ImageIcon, MessageSquare } from "lucide-react";
 import type {
   DraggableAttributes,
   DraggableSyntheticListeners,
 } from "@dnd-kit/core";
-import type { IssueWithImages } from "@/db/schema";
+import type { IssueWithDetails } from "@/db/schema";
 import { imageSrc } from "@/lib/images";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
 import { Screenshot } from "./screenshot";
@@ -17,7 +17,7 @@ export function IssueCardBody({
   onPreview,
   compact = false,
 }: {
-  issue: IssueWithImages;
+  issue: IssueWithDetails;
   onOpen: () => void;
   onPreview: (url: string) => void;
   compact?: boolean;
@@ -82,6 +82,17 @@ export function IssueCardBody({
             compact ? "mt-1.5" : "justify-end"
           }`}
         >
+          {issue.comments.length > 0 ? (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] leading-5 text-muted"
+              title={`${issue.comments.length} ${
+                issue.comments.length === 1 ? "comment" : "comments"
+              }`}
+            >
+              <MessageSquare size={11} />
+              {issue.comments.length}
+            </span>
+          ) : null}
           <PriorityChip value={issue.priority} />
           <EffortChip value={issue.effort} />
           {!compact ? <StatusChip value={issue.status} /> : null}

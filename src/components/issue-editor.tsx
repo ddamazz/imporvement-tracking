@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Loader2, Trash2, X } from "lucide-react";
-import type { IssueWithImages } from "@/db/schema";
+import type { IssueWithDetails } from "@/db/schema";
 import {
   EFFORTS,
   PRIORITIES,
@@ -13,7 +13,8 @@ import {
 } from "@/lib/constants";
 import { deleteIssue, discardBlobs, saveIssue } from "@/lib/actions";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
-import { ImageDropzone } from "./image-dropzone";
+import { Comments } from "./comments";
+import { ImageDropzone, hasFocusWithin } from "./image-dropzone";
 import { imageSrc, type StagedImage } from "@/lib/images";
 import { Lightbox } from "./lightbox";
 import { OptionPicker } from "./option-picker";
@@ -21,10 +22,13 @@ import { OptionPicker } from "./option-picker";
 export function IssueEditor({
   pageId,
   issue,
+  focusCommentId,
   onClose,
 }: {
   pageId: string;
-  issue: IssueWithImages | null;
+  issue: IssueWithDetails | null;
+  /** Comment to scroll to and highlight, when opened from a shared link. */
+  focusCommentId?: string | null;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(issue?.title ?? "");
@@ -45,6 +49,13 @@ export function IssueEditor({
 
   // Blobs uploaded during this session, tracked so unused ones get cleaned up.
   const uploadedRef = useRef<StagedImage[]>([]);
+  // The comment composer, so a paste can be given to whichever of the two
+  // dropzones the caret is actually in.
+  const composerRef = useRef<HTMLDivElement>(null);
+
+  // Stable, so the dropzone doesn't re-bind its paste listener on every
+  // keystroke in the title or description.
+  const claimPaste = useCallback(() => !hasFocusWithin(composerRef), []);
 
   /**
    * Blobs uploaded in this session that aren't in the given final list. Saving
@@ -203,8 +214,18 @@ export function IssueEditor({
                 onChange={setImages}
                 onUploaded={(image) => uploadedRef.current.push(image)}
                 onPreview={setPreview}
+                capturePaste={claimPaste}
               />
             </div>
+
+            <Comments
+              pageId={pageId}
+              issueId={issue?.id ?? null}
+              comments={issue?.comments ?? []}
+              focusCommentId={focusCommentId}
+              onPreview={setPreview}
+              composerRef={composerRef}
+            />
 
             {error ? (
               <p className="text-xs text-red-600 dark:text-red-400">{error}</p>

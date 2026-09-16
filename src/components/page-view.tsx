@@ -4,9 +4,11 @@ import {
   useEffect,
   useMemo,
   useOptimistic,
+  useRef,
   useState,
   useTransition,
 } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Check,
   Columns3,
@@ -15,7 +17,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import type { IssueWithImages, Page } from "@/db/schema";
+import type { IssueWithDetails, Page } from "@/db/schema";
 import {
   PAGE_EMOJI_CHOICES,
   PRIORITIES,
@@ -45,7 +47,11 @@ const DEFAULT_PREFS: Prefs = {
   groupBy: "status",
 };
 
-type Editing = { mode: "new" } | { mode: "edit"; issue: IssueWithImages };
+/**
+ * Held by id, not by value: the open editor then follows the server's copy of
+ * the issue, so a comment posted inside it shows up straight away.
+ */
+type Editing = { mode: "new" } | { mode: "edit"; id: string };
 
 type OptimisticChange =
   | { type: "reorder"; orderedIds: string[] }
@@ -56,9 +62,9 @@ type OptimisticChange =
     };
 
 function applyChange(
-  state: IssueWithImages[],
+  state: IssueWithDetails[],
   change: OptimisticChange,
-): IssueWithImages[] {
+): IssueWithDetails[] {
   if (change.type === "patch") {
     return state.map((issue) =>
       issue.id === change.id ? { ...issue, ...change.patch } : issue,
@@ -67,7 +73,7 @@ function applyChange(
   const byId = new Map(state.map((issue) => [issue.id, issue]));
   return change.orderedIds
     .map((id) => byId.get(id))
-    .filter((issue): issue is IssueWithImages => Boolean(issue));
+    .filter((issue): issue is IssueWithDetails => Boolean(issue));
 }
 
 export function PageView({
@@ -75,7 +81,7 @@ export function PageView({
   issues,
 }: {
   page: Page;
-  issues: IssueWithImages[];
+  issues: IssueWithDetails[];
 }) {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const { view, sort, groupBy } = prefs;
@@ -84,6 +90,35 @@ export function PageView({
   const [editing, setEditing] = useState<Editing | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const linkedIssueId = searchParams.get("issue");
+  const linkedCommentId = searchParams.get("comment");
+  // Only act on a link once, so closing the editor doesn't reopen it while the
+  // query string is still on screen.
+  const openedFromLink = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!linkedIssueId) {
+      openedFromLink.current = null;
+      return;
+    }
+    if (openedFromLink.current === linkedIssueId) return;
+    if (!issues.some((issue) => issue.id === linkedIssueId)) return;
+    openedFromLink.current = linkedIssueId;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- opening from the URL
+    setEditing({ mode: "edit", id: linkedIssueId });
+  }, [linkedIssueId, issues]);
+
+  function closeEditor() {
+    setEditing(null);
+    if (linkedIssueId || linkedCommentId) {
+      // replaceState rather than router.replace: the params were only ever a
+      // way in, and dropping them shouldn't cost a round trip to the server.
+      window.history.replaceState(null, "", pathname);
+    }
+  }
 
   // Drags show their result immediately, then defer to the server's data once
   // the action and its revalidation land.
@@ -140,6 +175,13 @@ export function PageView({
   const filterCount = priorityFilter.length + statusFilter.length;
   // Reordering a filtered or re-sorted subset would write a misleading order.
   const canSort = sort === "manual" && filterCount === 0;
+
+  // From `issues` rather than the optimistic list, so the editor always shows
+  // what the server last sent — including comments added while it is open.
+  const editingIssue =
+    editing?.mode === "edit"
+      ? (issues.find((issue) => issue.id === editing.id) ?? null)
+      : null;
 
   function handleReorder(orderedIds: string[]) {
     startTransition(async () => {
@@ -236,7 +278,7 @@ export function PageView({
           <IssueList
             issues={visible}
             sortable={canSort}
-            onOpen={(issue) => setEditing({ mode: "edit", issue })}
+            onOpen={(issue) => setEditing({ mode: "edit", id: issue.id })}
             onPreview={setPreview}
             onReorder={handleReorder}
           />
@@ -244,7 +286,7 @@ export function PageView({
           <IssueBoard
             issues={visible}
             groupBy={groupBy}
-            onOpen={(issue) => setEditing({ mode: "edit", issue })}
+            onOpen={(issue) => setEditing({ mode: "edit", id: issue.id })}
             onPreview={setPreview}
             onMove={({ id, patch, orderedIds }) => {
               startTransition(async () => {
@@ -258,11 +300,18 @@ export function PageView({
         )}
       </div>
 
-      {editing ? (
+      {editing && (editing.mode === "new" || editingIssue) ? (
         <IssueEditor
+          // Remount when a different issue is opened, so its drafts start fresh.
+          key={editing.mode === "new" ? "new" : editing.id}
           pageId={page.id}
-          issue={editing.mode === "edit" ? editing.issue : null}
-          onClose={() => setEditing(null)}
+          issue={editingIssue}
+          focusCommentId={
+            editingIssue && editingIssue.id === linkedIssueId
+              ? linkedCommentId
+              : null
+          }
+          onClose={closeEditor}
         />
       ) : null}
 
