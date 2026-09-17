@@ -29,7 +29,7 @@ export function OptionPicker<T extends string>({
               type="button"
               aria-pressed={selected}
               onClick={() => onChange(option)}
-              className={`rounded-md p-0.5 transition ${
+              className={`inline-flex rounded-md p-0.5 leading-none transition ${
                 selected
                   ? "ring-2 ring-accent"
                   : "opacity-60 hover:opacity-100"

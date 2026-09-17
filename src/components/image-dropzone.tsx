@@ -17,7 +17,7 @@ export function hasFocusWithin(
   return Boolean(node && document.activeElement && node.contains(document.activeElement));
 }
 
-const ACCEPTED = [
+export const ACCEPTED = [
   "image/png",
   "image/jpeg",
   "image/gif",
@@ -25,36 +25,33 @@ const ACCEPTED = [
   "image/avif",
 ];
 
-export function ImageDropzone({
+/** Rearranges `images` for a "move left/right" click, clamped to the ends. */
+export function reorderImages<T>(images: T[], index: number, delta: number): T[] {
+  const target = index + delta;
+  if (target < 0 || target >= images.length) return images;
+  const next = [...images];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+/**
+ * Upload state and the paste/drop plumbing shared by every dropzone-like
+ * surface — the dedicated screenshot box below, and the comment composer's
+ * unified field, which reuses this without the box.
+ */
+export function useImageUploads({
   pageId,
-  images,
   onChange,
   onUploaded,
-  onPreview,
   capturePaste,
-  compact = false,
-  emptyLabel = "Paste a screenshot, drop files, or click to browse",
 }: {
   pageId: string;
-  images: StagedImage[];
-  /** A state setter, so parallel uploads can each append without clobbering. */
   onChange: React.Dispatch<React.SetStateAction<StagedImage[]>>;
-  /** Reports every successful upload so the editor can clean up on cancel. */
   onUploaded: (image: StagedImage) => void;
-  onPreview: (url: string) => void;
-  /**
-   * Consulted on every paste, so two dropzones on one screen can agree on
-   * which of them the image was meant for. Always claims it when omitted.
-   */
   capturePaste?: () => boolean;
-  /** A tighter grid and a one-line prompt, for the comment composer. */
-  compact?: boolean;
-  emptyLabel?: string;
 }) {
   const [pending, setPending] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isOver, setIsOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const uploadFiles = useCallback(
     async (files: File[]) => {
@@ -105,14 +102,43 @@ export function ImageDropzone({
     return () => document.removeEventListener("paste", onPaste);
   }, [uploadFiles, capturePaste]);
 
+  return { pending, error, uploadFiles };
+}
+
+export function ImageDropzone({
+  pageId,
+  images,
+  onChange,
+  onUploaded,
+  onPreview,
+  capturePaste,
+  emptyLabel = "Paste a screenshot, drop files, or click to browse",
+}: {
+  pageId: string;
+  images: StagedImage[];
+  /** A state setter, so parallel uploads can each append without clobbering. */
+  onChange: React.Dispatch<React.SetStateAction<StagedImage[]>>;
+  /** Reports every successful upload so the editor can clean up on cancel. */
+  onUploaded: (image: StagedImage) => void;
+  onPreview: (url: string) => void;
+  /**
+   * Consulted on every paste, so two dropzones on one screen can agree on
+   * which of them the image was meant for. Always claims it when omitted.
+   */
+  capturePaste?: () => boolean;
+  emptyLabel?: string;
+}) {
+  const { pending, error, uploadFiles } = useImageUploads({
+    pageId,
+    onChange,
+    onUploaded,
+    capturePaste,
+  });
+  const [isOver, setIsOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   function move(index: number, delta: number) {
-    onChange((current) => {
-      const target = index + delta;
-      if (target < 0 || target >= current.length) return current;
-      const next = [...current];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+    onChange((current) => reorderImages(current, index, delta));
   }
 
   return (
@@ -133,11 +159,7 @@ export function ImageDropzone({
         }`}
       >
         {images.length > 0 || pending.length > 0 ? (
-          <div
-            className={`grid gap-2 ${
-              compact ? "grid-cols-4 sm:grid-cols-6" : "grid-cols-3 sm:grid-cols-4"
-            }`}
-          >
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {images.map((image, index) => (
               <div
                 key={image.url}
@@ -203,15 +225,6 @@ export function ImageDropzone({
               <ImagePlus size={16} />
             </button>
           </div>
-        ) : compact ? (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-muted hover:text-text"
-          >
-            <ImagePlus size={14} />
-            <span className="text-[11px] font-medium">{emptyLabel}</span>
-          </button>
         ) : (
           <button
             type="button"

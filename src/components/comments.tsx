@@ -1,7 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { Check, Link2, Loader2, Send, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ImagePlus,
+  Link2,
+  Loader2,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import type { CommentWithImages } from "@/db/schema";
 import { addComment, deleteComment, discardBlobs } from "@/lib/actions";
 import {
@@ -13,8 +23,18 @@ import {
   writeAuthor,
 } from "@/lib/author";
 import { imageSrc, type StagedImage } from "@/lib/images";
-import { ImageDropzone, hasFocusWithin } from "./image-dropzone";
+import {
+  ACCEPTED,
+  hasFocusWithin,
+  reorderImages,
+  useImageUploads,
+} from "./image-dropzone";
 import { Screenshot } from "./screenshot";
+
+/** A link that opens this issue directly. */
+export function issueLink(pageId: string, issueId: string): string {
+  return `${window.location.origin}/p/${pageId}?issue=${issueId}`;
+}
 
 /** A link that reopens this issue with the comment scrolled to and lit up. */
 export function commentLink(
@@ -22,7 +42,7 @@ export function commentLink(
   issueId: string,
   commentId: string,
 ): string {
-  return `${window.location.origin}/p/${pageId}?issue=${issueId}&comment=${commentId}`;
+  return `${issueLink(pageId, issueId)}&comment=${commentId}`;
 }
 
 const RELATIVE = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -238,9 +258,31 @@ function Composer({
   const [images, setImages] = useState<StagedImage[]>([]);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOver, setIsOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Attachments uploaded from this composer, so unposted ones can be cleaned up.
   const uploadedRef = useRef<StagedImage[]>([]);
+
+  const claimPaste = useCallback(
+    () => hasFocusWithin(composerRef),
+    [composerRef],
+  );
+
+  const {
+    pending,
+    error: uploadError,
+    uploadFiles,
+  } = useImageUploads({
+    pageId,
+    onChange: setImages,
+    onUploaded: (image) => uploadedRef.current.push(image),
+    capturePaste: claimPaste,
+  });
+
+  function move(index: number, delta: number) {
+    setImages((current) => reorderImages(current, index, delta));
+  }
 
   // The name lives in a cookie, so every browser gets its own without a login.
   useEffect(() => {
@@ -298,11 +340,7 @@ function Composer({
   }
 
   const canPost = Boolean(body.trim()) || images.length > 0;
-
-  const claimPaste = useCallback(
-    () => hasFocusWithin(composerRef),
-    [composerRef],
-  );
+  const hasAttachments = images.length > 0 || pending.length > 0;
 
   return (
     <div
@@ -325,44 +363,141 @@ function Composer({
         />
       </label>
 
-      <textarea
-        value={body}
-        maxLength={MAX_COMMENT_LENGTH}
-        onChange={(event) => setBody(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-            event.preventDefault();
-            // Stop the editor's ⌘↵ from saving the issue as well.
-            event.stopPropagation();
-            void post();
-          }
-          // Escape closes the whole editor. Step out of the box first, so a
-          // half-written comment isn't thrown away by a stray keypress.
-          if (event.key === "Escape" && body.trim()) {
-            event.stopPropagation();
-            event.currentTarget.blur();
-          }
+      <div
+        onDragOver={(event) => {
+          // Ignore an internal text drag (selecting text and dragging it
+          // elsewhere in the box) so the browser still moves it normally.
+          if (!event.dataTransfer.types.includes("Files")) return;
+          event.preventDefault();
+          setIsOver(true);
         }}
-        rows={2}
-        placeholder="Add a comment… paste an image to attach it"
-        className="w-full resize-y rounded-md border border-line bg-bg px-2 py-1.5 text-sm outline-none focus:border-accent"
+        onDragLeave={() => setIsOver(false)}
+        onDrop={(event) => {
+          if (!event.dataTransfer.types.includes("Files")) return;
+          event.preventDefault();
+          setIsOver(false);
+          void uploadFiles(Array.from(event.dataTransfer.files));
+        }}
+        className={`rounded-md border bg-bg transition ${
+          isOver ? "border-accent bg-accent/5" : "border-line"
+        }`}
+      >
+        <textarea
+          value={body}
+          maxLength={MAX_COMMENT_LENGTH}
+          onChange={(event) => setBody(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              // Stop the editor's ⌘↵ from saving the issue as well.
+              event.stopPropagation();
+              void post();
+            }
+            // Escape closes the whole editor. Step out of the box first, so a
+            // half-written comment isn't thrown away by a stray keypress.
+            if (event.key === "Escape" && body.trim()) {
+              event.stopPropagation();
+              event.currentTarget.blur();
+            }
+          }}
+          rows={2}
+          placeholder="Add a comment… drag or paste an image to attach it"
+          className="w-full resize-y rounded-md border-0 bg-transparent px-2 py-1.5 text-sm outline-none"
+        />
+
+        {hasAttachments ? (
+          <div className="grid grid-cols-4 gap-2 border-t border-line p-2 sm:grid-cols-6">
+            {images.map((image, index) => (
+              <div
+                key={image.url}
+                className="group relative aspect-4/3 overflow-hidden rounded-md border border-line bg-surface-2"
+              >
+                <Screenshot
+                  src={image.previewUrl}
+                  className="size-full cursor-zoom-in object-contain"
+                  onClick={() => onPreview(image.previewUrl)}
+                />
+                <button
+                  type="button"
+                  aria-label="Remove image"
+                  onClick={() =>
+                    setImages((current) =>
+                      current.filter((item) => item.url !== image.url),
+                    )
+                  }
+                  className="absolute right-1 top-1 grid size-5 place-items-center rounded bg-black/60 text-white opacity-0 transition group-hover:opacity-100"
+                >
+                  <X size={12} />
+                </button>
+                <div className="absolute bottom-1 left-1 flex gap-0.5 opacity-0 transition group-hover:opacity-100">
+                  <button
+                    type="button"
+                    aria-label="Move image left"
+                    disabled={index === 0}
+                    onClick={() => move(index, -1)}
+                    className="grid size-5 place-items-center rounded bg-black/60 text-white disabled:opacity-30"
+                  >
+                    <ChevronLeft size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Move image right"
+                    disabled={index === images.length - 1}
+                    onClick={() => move(index, 1)}
+                    className="grid size-5 place-items-center rounded bg-black/60 text-white disabled:opacity-30"
+                  >
+                    <ChevronRight size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {pending.map((key) => (
+              <div
+                key={key}
+                className="grid aspect-4/3 place-items-center rounded-md border border-line bg-surface-2 text-muted"
+              >
+                <Loader2 size={16} className="animate-spin" />
+              </div>
+            ))}
+
+            <button
+              type="button"
+              aria-label="Attach an image"
+              onClick={() => fileInputRef.current?.click()}
+              className="grid aspect-4/3 place-items-center rounded-md border border-dashed border-line text-muted hover:border-accent hover:text-text"
+            >
+              <ImagePlus size={16} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            aria-label="Attach an image"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex w-full items-center justify-end px-2 pb-1.5 text-muted hover:text-text"
+          >
+            <ImagePlus size={14} />
+          </button>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED.join(",")}
+        multiple
+        hidden
+        onChange={(event) => {
+          void uploadFiles(Array.from(event.target.files ?? []));
+          event.target.value = "";
+        }}
       />
 
-      <ImageDropzone
-        pageId={pageId}
-        images={images}
-        onChange={setImages}
-        onUploaded={(image) => uploadedRef.current.push(image)}
-        onPreview={onPreview}
-        compact
-        emptyLabel="Attach an image"
-        // Only claim a paste while the caret is in the composer; otherwise the
-        // image belongs to the issue's own screenshots.
-        capturePaste={claimPaste}
-      />
-
-      {error ? (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+      {(error ?? uploadError) ? (
+        <p className="text-xs text-red-600 dark:text-red-400">
+          {error ?? uploadError}
+        </p>
       ) : null}
 
       <div className="flex items-center justify-between gap-2">

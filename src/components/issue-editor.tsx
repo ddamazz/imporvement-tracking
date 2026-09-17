@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Loader2, Trash2, X } from "lucide-react";
+import { Check, Link2, Loader2, Trash2, X } from "lucide-react";
 import type { IssueWithDetails } from "@/db/schema";
 import {
   EFFORTS,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/constants";
 import { deleteIssue, discardBlobs, saveIssue } from "@/lib/actions";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
-import { Comments } from "./comments";
+import { Comments, issueLink } from "./comments";
 import { ImageDropzone, hasFocusWithin } from "./image-dropzone";
 import { imageSrc, type StagedImage } from "@/lib/images";
 import { Lightbox } from "./lightbox";
@@ -46,6 +46,7 @@ export function IssueEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Blobs uploaded during this session, tracked so unused ones get cleaned up.
   const uploadedRef = useRef<StagedImage[]>([]);
@@ -102,6 +103,21 @@ export function IssueEditor({
     onClose();
   }
 
+  async function copyLink() {
+    if (!issue) return;
+    const url = issueLink(pageId, issue.id);
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // No clipboard access (an insecure origin, usually) — show the link so
+      // it can still be copied by hand rather than failing silently.
+      window.prompt("Copy this link", url);
+      return;
+    }
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 1500);
+  }
+
   // Handled on the dialog rather than the document, so the shortcuts always
   // see current state without a render-time ref.
   function onKeyDown(event: React.KeyboardEvent) {
@@ -127,13 +143,24 @@ export function IssueEditor({
           role="dialog"
           aria-modal="true"
           aria-label={issue ? "Edit issue" : "New issue"}
-          className="w-full max-w-2xl rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]"
+          className="flex w-full max-w-6xl flex-col rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)] max-h-[85vh]"
         >
-          <header className="flex items-center justify-between border-b border-line px-4 py-3">
+          <header className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
             <h2 className="text-sm font-semibold">
               {issue ? "Edit issue" : "New issue"}
             </h2>
             <div className="flex items-center gap-1">
+              {issue ? (
+                <button
+                  type="button"
+                  aria-label="Copy link to this issue"
+                  title="Copy link to this issue"
+                  onClick={() => void copyLink()}
+                  className="grid size-7 place-items-center rounded-md text-muted hover:bg-surface-3 hover:text-text"
+                >
+                  {linkCopied ? <Check size={15} /> : <Link2 size={15} />}
+                </button>
+              ) : null}
               {issue ? (
                 <button
                   type="button"
@@ -162,7 +189,7 @@ export function IssueEditor({
             </div>
           </header>
 
-          <div className="space-y-4 p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             <input
               autoFocus
               value={title}
@@ -171,7 +198,7 @@ export function IssueEditor({
               className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-base font-medium outline-none focus:border-accent"
             />
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:gap-x-8 sm:gap-y-4">
               <OptionPicker
                 label="Priority"
                 options={PRIORITIES}
@@ -232,7 +259,7 @@ export function IssueEditor({
             ) : null}
           </div>
 
-          <footer className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
+          <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-line px-4 py-3">
             <span className="hidden text-[11px] text-muted sm:block">
               ⌘↵ to save · Esc to cancel
             </span>
