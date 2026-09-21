@@ -11,11 +11,14 @@ export function Popover({
   children,
   align = "right",
   className = "",
+  minWidth = "min-w-44",
 }: {
   trigger: (props: { open: boolean; toggle: () => void }) => React.ReactNode;
   children: (props: { close: () => void }) => React.ReactNode;
   align?: "left" | "right";
   className?: string;
+  /** Overridable because a same-utility class in `className` can't win. */
+  minWidth?: string;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -45,7 +48,7 @@ export function Popover({
       {trigger({ open, toggle: () => setOpen((value) => !value) })}
       {open ? (
         <div
-          className={`absolute top-full z-30 mt-1 min-w-44 rounded-lg border border-line bg-surface p-1 shadow-[var(--shadow-pop)] ${
+          className={`absolute top-full z-30 mt-1 rounded-lg border border-line bg-surface p-1 shadow-[var(--shadow-pop)] ${minWidth} ${
             align === "right" ? "right-0" : "left-0"
           } ${className}`}
         >

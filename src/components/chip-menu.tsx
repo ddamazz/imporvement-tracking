@@ -37,7 +37,7 @@ function ChipMenu<T extends string>({
   return (
     <Popover
       align="right"
-      className="min-w-40"
+      minWidth="min-w-0"
       trigger={({ open, toggle }) => (
         <button
           type="button"
