@@ -14,7 +14,7 @@ export function Screenshot({
 }: {
   src: string;
   className?: string;
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLImageElement>;
 }) {
   const [failed, setFailed] = useState(false);
 

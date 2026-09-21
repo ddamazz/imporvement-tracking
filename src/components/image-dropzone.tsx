@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImagePlus, Loader2, X } from "lucide-react";
 import { type StagedImage, uploadImage } from "@/lib/images";
+import type { OnPreview } from "./lightbox";
 import { Screenshot } from "./screenshot";
 
 /**
@@ -120,7 +121,7 @@ export function ImageDropzone({
   onChange: React.Dispatch<React.SetStateAction<StagedImage[]>>;
   /** Reports every successful upload so the editor can clean up on cancel. */
   onUploaded: (image: StagedImage) => void;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
   /**
    * Consulted on every paste, so two dropzones on one screen can agree on
    * which of them the image was meant for. Always claims it when omitted.
@@ -171,7 +172,12 @@ export function ImageDropzone({
                 <Screenshot
                   src={image.previewUrl}
                   className="size-full cursor-zoom-in object-contain"
-                  onClick={() => onPreview(image.previewUrl)}
+                  onClick={() =>
+                    onPreview(
+                      images.map((item) => item.previewUrl),
+                      index,
+                    )
+                  }
                 />
                 <button
                   type="button"

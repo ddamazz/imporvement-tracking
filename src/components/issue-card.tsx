@@ -8,6 +8,7 @@ import type {
 import type { IssueWithDetails } from "@/db/schema";
 import { imageSrc } from "@/lib/images";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
+import type { OnPreview } from "./lightbox";
 import { Screenshot } from "./screenshot";
 
 /** Shared card body so list and board rows look identical. */
@@ -19,20 +20,25 @@ export function IssueCardBody({
 }: {
   issue: IssueWithDetails;
   onOpen: () => void;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
   compact?: boolean;
 }) {
   const [firstImage, ...restImages] = issue.images;
+  const urls = issue.images.map((image) => imageSrc(image.id));
 
   return (
     <div className="flex min-w-0 flex-1 items-start gap-3">
       {firstImage ? (
         <button
           type="button"
-          aria-label="View screenshot"
+          aria-label={
+            restImages.length > 0
+              ? `View ${issue.images.length} screenshots`
+              : "View screenshot"
+          }
           onClick={(event) => {
             event.stopPropagation();
-            onPreview(imageSrc(firstImage.id));
+            onPreview(urls, 0);
           }}
           className={`relative shrink-0 overflow-hidden rounded-md border border-line bg-surface-2 ${
             compact ? "h-12 w-16" : "h-14 w-20"

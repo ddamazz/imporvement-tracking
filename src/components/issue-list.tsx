@@ -19,6 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useState } from "react";
 import type { IssueWithDetails } from "@/db/schema";
 import { DragHandle, IssueCardBody } from "./issue-card";
+import type { OnPreview } from "./lightbox";
 
 export function IssueList({
   issues,
@@ -31,7 +32,7 @@ export function IssueList({
   /** Reordering only makes sense while the list is in manual order. */
   sortable: boolean;
   onOpen: (issue: IssueWithDetails) => void;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
   onReorder: (orderedIds: string[]) => void;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -109,7 +110,7 @@ function IssueRow({
   issue: IssueWithDetails;
   sortable: boolean;
   onOpen: () => void;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: issue.id, disabled: !sortable });

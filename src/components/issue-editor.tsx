@@ -16,7 +16,7 @@ import { EffortChip, PriorityChip, StatusChip } from "./chip";
 import { Comments, issueLink } from "./comments";
 import { ImageDropzone, hasFocusWithin } from "./image-dropzone";
 import { imageSrc, type StagedImage } from "@/lib/images";
-import { Lightbox } from "./lightbox";
+import { Lightbox, type Preview } from "./lightbox";
 import { OptionPicker } from "./option-picker";
 
 export function IssueEditor({
@@ -45,7 +45,7 @@ export function IssueEditor({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
 
   // Blobs uploaded during this session, tracked so unused ones get cleaned up.
@@ -240,7 +240,7 @@ export function IssueEditor({
                 images={images}
                 onChange={setImages}
                 onUploaded={(image) => uploadedRef.current.push(image)}
-                onPreview={setPreview}
+                onPreview={(urls, index) => setPreview({ urls, index })}
                 capturePaste={claimPaste}
               />
             </div>
@@ -250,7 +250,7 @@ export function IssueEditor({
               issueId={issue?.id ?? null}
               comments={issue?.comments ?? []}
               focusCommentId={focusCommentId}
-              onPreview={setPreview}
+              onPreview={(urls, index) => setPreview({ urls, index })}
               composerRef={composerRef}
             />
 
@@ -286,7 +286,11 @@ export function IssueEditor({
       </div>
 
       {preview ? (
-        <Lightbox url={preview} onClose={() => setPreview(null)} />
+        <Lightbox
+          urls={preview.urls}
+          index={preview.index}
+          onClose={() => setPreview(null)}
+        />
       ) : null}
     </>
   );

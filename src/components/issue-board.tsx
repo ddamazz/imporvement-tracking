@@ -24,6 +24,7 @@ import {
   type Status,
 } from "@/lib/constants";
 import { IssueCardBody } from "./issue-card";
+import type { OnPreview } from "./lightbox";
 
 export type GroupBy = "status" | "priority";
 
@@ -39,7 +40,7 @@ export function IssueBoard({
   issues: IssueWithDetails[];
   groupBy: GroupBy;
   onOpen: (issue: IssueWithDetails) => void;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
   /** Applies a field change and/or a new global order in one go. */
   onMove: (args: {
     id: string;
@@ -168,7 +169,7 @@ function BoardColumn({
   issues: IssueWithDetails[];
   groupBy: GroupBy;
   onOpen: (issue: IssueWithDetails) => void;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -214,7 +215,7 @@ function BoardCard({
   issue: IssueWithDetails;
   hideStatus: boolean;
   onOpen: () => void;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
 }) {
   // `attributes` is deliberately not spread: it sets role="button", which would
   // nest the card's own buttons inside a button. The list view keeps the

@@ -33,7 +33,7 @@ import { reorderIssues, updateIssueFields, updatePage } from "@/lib/actions";
 import { IssueBoard, type GroupBy } from "./issue-board";
 import { IssueEditor } from "./issue-editor";
 import { IssueList } from "./issue-list";
-import { Lightbox } from "./lightbox";
+import { Lightbox, type Preview } from "./lightbox";
 import { MenuItem, Popover } from "./popover";
 
 type ViewMode = "list" | "board";
@@ -88,7 +88,7 @@ export function PageView({
   const [priorityFilter, setPriorityFilter] = useState<Priority[]>([]);
   const [statusFilter, setStatusFilter] = useState<Status[]>([]);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
   const [, startTransition] = useTransition();
 
   const pathname = usePathname();
@@ -279,7 +279,7 @@ export function PageView({
             issues={visible}
             sortable={canSort}
             onOpen={(issue) => setEditing({ mode: "edit", id: issue.id })}
-            onPreview={setPreview}
+            onPreview={(urls, index) => setPreview({ urls, index })}
             onReorder={handleReorder}
           />
         ) : (
@@ -287,7 +287,7 @@ export function PageView({
             issues={visible}
             groupBy={groupBy}
             onOpen={(issue) => setEditing({ mode: "edit", id: issue.id })}
-            onPreview={setPreview}
+            onPreview={(urls, index) => setPreview({ urls, index })}
             onMove={({ id, patch, orderedIds }) => {
               startTransition(async () => {
                 if (patch) applyOptimistic({ type: "patch", id, patch });
@@ -316,7 +316,11 @@ export function PageView({
       ) : null}
 
       {preview ? (
-        <Lightbox url={preview} onClose={() => setPreview(null)} />
+        <Lightbox
+          urls={preview.urls}
+          index={preview.index}
+          onClose={() => setPreview(null)}
+        />
       ) : null}
     </div>
   );

@@ -29,6 +29,7 @@ import {
   reorderImages,
   useImageUploads,
 } from "./image-dropzone";
+import type { OnPreview } from "./lightbox";
 import { Screenshot } from "./screenshot";
 
 /** A link that opens this issue directly. */
@@ -79,7 +80,7 @@ export function Comments({
   comments: CommentWithImages[];
   /** Comment to scroll to and highlight, from a shared link. */
   focusCommentId?: string | null;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
   /**
    * Owned by the editor, which needs it to know whether a paste belongs to the
    * composer or to the issue's own screenshots.
@@ -146,7 +147,7 @@ function CommentRow({
   pageId: string;
   issueId: string;
   highlighted: boolean;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
 }) {
   const [copied, setCopied] = useState(false);
   const [, startTransition] = useTransition();
@@ -222,12 +223,17 @@ function CommentRow({
 
       {comment.images.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {comment.images.map((image) => (
+          {comment.images.map((image, index) => (
             <button
               key={image.id}
               type="button"
               aria-label="View attachment"
-              onClick={() => onPreview(imageSrc(image.id))}
+              onClick={() =>
+                onPreview(
+                  comment.images.map((item) => imageSrc(item.id)),
+                  index,
+                )
+              }
               className="h-16 w-24 overflow-hidden rounded-md border border-line bg-surface"
             >
               <Screenshot
@@ -250,7 +256,7 @@ function Composer({
 }: {
   pageId: string;
   issueId: string;
-  onPreview: (url: string) => void;
+  onPreview: OnPreview;
   composerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const [author, setAuthor] = useState("");
@@ -415,7 +421,12 @@ function Composer({
                 <Screenshot
                   src={image.previewUrl}
                   className="size-full cursor-zoom-in object-contain"
-                  onClick={() => onPreview(image.previewUrl)}
+                  onClick={() =>
+                    onPreview(
+                      images.map((item) => item.previewUrl),
+                      index,
+                    )
+                  }
                 />
                 <button
                   type="button"
