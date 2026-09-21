@@ -40,8 +40,11 @@ export function IssueCardBody({
   compact?: boolean;
   /** Spreads the open button across the whole row via a pseudo-element, so
    *  hovering anywhere — padding, gaps, the blank space beside a short title —
-   *  shows the hand and opens the issue. The row must be `relative`, and the
-   *  controls that sit on top of it stay clickable via `z-[1]`. */
+   *  shows the hand and opens the issue. The row must be `relative`. Controls
+   *  that must stay clickable sit above the overlay: the ones before it in the
+   *  DOM need `z-[1]`, the chips after it only need `relative` — deliberately
+   *  without a z-index, which would trap their popovers in a stacking context
+   *  and let the next row paint over them. */
   stretchHitArea?: boolean;
 }) {
   const [firstImage, ...restImages] = issue.images;
@@ -109,7 +112,7 @@ export function IssueCardBody({
           ) : null}
         </button>
         <div
-          className={`relative z-[1] flex shrink-0 flex-wrap items-center gap-1 ${
+          className={`relative flex shrink-0 flex-wrap items-center gap-1 ${
             compact ? "mt-1.5" : "justify-end"
           }`}
         >
