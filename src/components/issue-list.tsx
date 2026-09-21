@@ -18,7 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useState } from "react";
 import type { IssueWithDetails } from "@/db/schema";
-import { DragHandle, IssueCardBody } from "./issue-card";
+import { DragHandle, IssueCardBody, type IssuePatch } from "./issue-card";
 import type { OnPreview } from "./lightbox";
 
 export function IssueList({
@@ -26,6 +26,7 @@ export function IssueList({
   sortable,
   onOpen,
   onPreview,
+  onPatch,
   onReorder,
 }: {
   issues: IssueWithDetails[];
@@ -33,6 +34,8 @@ export function IssueList({
   sortable: boolean;
   onOpen: (issue: IssueWithDetails) => void;
   onPreview: OnPreview;
+  /** Priority/effort/status edited straight from the row's chips. */
+  onPatch: (id: string, patch: IssuePatch) => void;
   onReorder: (orderedIds: string[]) => void;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -81,6 +84,7 @@ export function IssueList({
               sortable={sortable}
               onOpen={() => onOpen(issue)}
               onPreview={onPreview}
+              onPatch={(patch) => onPatch(issue.id, patch)}
             />
           ))}
         </ul>
@@ -106,11 +110,13 @@ function IssueRow({
   sortable,
   onOpen,
   onPreview,
+  onPatch,
 }: {
   issue: IssueWithDetails;
   sortable: boolean;
   onOpen: () => void;
   onPreview: OnPreview;
+  onPatch: (patch: IssuePatch) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: issue.id, disabled: !sortable });
@@ -119,7 +125,7 @@ function IssueRow({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group flex items-start gap-1 rounded-lg border border-line bg-surface p-2 shadow-[var(--shadow-card)] transition hover:border-muted/40 ${
+      className={`group relative flex items-start gap-1 rounded-lg border border-line bg-surface p-2 shadow-[var(--shadow-card)] transition hover:border-muted/40 ${
         isDragging ? "opacity-40" : ""
       } ${issue.status === "done" ? "opacity-55" : ""}`}
     >
@@ -128,7 +134,13 @@ function IssueRow({
       ) : (
         <span className="w-1" />
       )}
-      <IssueCardBody issue={issue} onOpen={onOpen} onPreview={onPreview} />
+      <IssueCardBody
+        issue={issue}
+        onOpen={onOpen}
+        onPreview={onPreview}
+        onPatch={onPatch}
+        stretchHitArea
+      />
     </li>
   );
 }

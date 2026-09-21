@@ -6,22 +6,43 @@ import type {
   DraggableSyntheticListeners,
 } from "@dnd-kit/core";
 import type { IssueWithDetails } from "@/db/schema";
+import type { Effort, Priority, Status } from "@/lib/constants";
 import { imageSrc } from "@/lib/images";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
+import {
+  EffortChipMenu,
+  PriorityChipMenu,
+  StatusChipMenu,
+} from "./chip-menu";
 import type { OnPreview } from "./lightbox";
 import { Screenshot } from "./screenshot";
+
+export type IssuePatch = {
+  priority?: Priority;
+  effort?: Effort;
+  status?: Status;
+};
 
 /** Shared card body so list and board rows look identical. */
 export function IssueCardBody({
   issue,
   onOpen,
   onPreview,
+  onPatch,
   compact = false,
+  stretchHitArea = false,
 }: {
   issue: IssueWithDetails;
   onOpen: () => void;
   onPreview: OnPreview;
+  /** When given, the chips become pickers that edit the issue in place. */
+  onPatch?: (patch: IssuePatch) => void;
   compact?: boolean;
+  /** Spreads the open button across the whole row via a pseudo-element, so
+   *  hovering anywhere — padding, gaps, the blank space beside a short title —
+   *  shows the hand and opens the issue. The row must be `relative`, and the
+   *  controls that sit on top of it stay clickable via `z-[1]`. */
+  stretchHitArea?: boolean;
 }) {
   const [firstImage, ...restImages] = issue.images;
   const urls = issue.images.map((image) => imageSrc(image.id));
@@ -40,7 +61,7 @@ export function IssueCardBody({
             event.stopPropagation();
             onPreview(urls, 0);
           }}
-          className={`relative shrink-0 overflow-hidden rounded-md border border-line bg-surface-2 ${
+          className={`relative z-[1] shrink-0 overflow-hidden rounded-md border border-line bg-surface-2 ${
             compact ? "h-12 w-16" : "h-14 w-20"
           }`}
         >
@@ -66,25 +87,29 @@ export function IssueCardBody({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={onOpen}
-        className={`flex min-w-0 flex-1 text-left ${
-          compact
-            ? "flex-col items-stretch"
-            : "items-start justify-between gap-3"
+      {/* The chips sit beside the open-the-issue button rather than inside it,
+          so they can be pickers of their own. */}
+      <div
+        className={`flex min-w-0 flex-1 ${
+          compact ? "flex-col items-stretch" : "items-start justify-between gap-3"
         }`}
       >
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={onOpen}
+          className={`min-w-0 flex-1 text-left ${
+            stretchHitArea ? "before:absolute before:inset-0" : ""
+          }`}
+        >
           <p className="truncate text-sm font-medium">{issue.title}</p>
           {issue.description ? (
             <p className="mt-0.5 line-clamp-2 text-xs text-muted">
               {issue.description}
             </p>
           ) : null}
-        </div>
+        </button>
         <div
-          className={`flex shrink-0 flex-wrap items-center gap-1 ${
+          className={`relative z-[1] flex shrink-0 flex-wrap items-center gap-1 ${
             compact ? "mt-1.5" : "justify-end"
           }`}
         >
@@ -99,11 +124,32 @@ export function IssueCardBody({
               {issue.comments.length}
             </span>
           ) : null}
-          <PriorityChip value={issue.priority} />
-          <EffortChip value={issue.effort} />
-          {!compact ? <StatusChip value={issue.status} /> : null}
+          {onPatch ? (
+            <>
+              <PriorityChipMenu
+                value={issue.priority}
+                onChange={(priority) => onPatch({ priority })}
+              />
+              <EffortChipMenu
+                value={issue.effort}
+                onChange={(effort) => onPatch({ effort })}
+              />
+              {!compact ? (
+                <StatusChipMenu
+                  value={issue.status}
+                  onChange={(status) => onPatch({ status })}
+                />
+              ) : null}
+            </>
+          ) : (
+            <>
+              <PriorityChip value={issue.priority} />
+              <EffortChip value={issue.effort} />
+              {!compact ? <StatusChip value={issue.status} /> : null}
+            </>
+          )}
         </div>
-      </button>
+      </div>
     </div>
   );
 }
@@ -119,7 +165,7 @@ export function DragHandle({
     <button
       type="button"
       aria-label="Reorder issue"
-      className="mt-0.5 grid size-6 shrink-0 cursor-grab place-items-center rounded text-muted opacity-0 transition group-hover:opacity-100 active:cursor-grabbing"
+      className="relative z-[1] mt-0.5 grid size-6 shrink-0 cursor-grab place-items-center rounded text-muted opacity-0 transition group-hover:opacity-100 active:cursor-grabbing"
       {...attributes}
       {...listeners}
     >

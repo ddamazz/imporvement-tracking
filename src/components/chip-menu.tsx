@@ -1,0 +1,138 @@
+"use client";
+
+import { Check } from "lucide-react";
+import {
+  EFFORTS,
+  EFFORT_META,
+  PRIORITIES,
+  PRIORITY_META,
+  STATUSES,
+  STATUS_META,
+  type Effort,
+  type Priority,
+  type Status,
+} from "@/lib/constants";
+import { EffortChip, PriorityChip, StatusChip } from "./chip";
+import { Popover } from "./popover";
+
+/**
+ * A chip that doubles as its own picker, so priority/effort/status can be
+ * changed straight from a list row without opening the issue.
+ */
+function ChipMenu<T extends string>({
+  label,
+  value,
+  options,
+  labelOf,
+  renderChip,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly T[];
+  labelOf: (option: T) => string;
+  renderChip: (option: T) => React.ReactNode;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <Popover
+      align="right"
+      className="min-w-40"
+      trigger={({ open, toggle }) => (
+        <button
+          type="button"
+          aria-label={`${label}: ${labelOf(value)} \u2014 change`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={toggle}
+          className={`inline-flex rounded-md transition hover:ring-2 hover:ring-accent/40 ${
+            open ? "ring-2 ring-accent" : ""
+          }`}
+        >
+          {renderChip(value)}
+        </button>
+      )}
+    >
+      {({ close }) => (
+        <>
+          <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-muted">
+            {label}
+          </p>
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => {
+                close();
+                if (option !== value) onChange(option);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-surface-3"
+            >
+              <span className="grid w-3.5 shrink-0 place-items-center">
+                {option === value ? <Check size={13} /> : null}
+              </span>
+              {renderChip(option)}
+            </button>
+          ))}
+        </>
+      )}
+    </Popover>
+  );
+}
+
+export function PriorityChipMenu({
+  value,
+  onChange,
+}: {
+  value: Priority;
+  onChange: (value: Priority) => void;
+}) {
+  return (
+    <ChipMenu
+      label="Priority"
+      value={value}
+      options={PRIORITIES}
+      labelOf={(option) => PRIORITY_META[option].label}
+      renderChip={(option) => <PriorityChip value={option} />}
+      onChange={onChange}
+    />
+  );
+}
+
+export function EffortChipMenu({
+  value,
+  onChange,
+}: {
+  value: Effort;
+  onChange: (value: Effort) => void;
+}) {
+  return (
+    <ChipMenu
+      label="Effort"
+      value={value}
+      options={EFFORTS}
+      labelOf={(option) => EFFORT_META[option].label}
+      renderChip={(option) => <EffortChip value={option} />}
+      onChange={onChange}
+    />
+  );
+}
+
+export function StatusChipMenu({
+  value,
+  onChange,
+}: {
+  value: Status;
+  onChange: (value: Status) => void;
+}) {
+  return (
+    <ChipMenu
+      label="Status"
+      value={value}
+      options={STATUSES}
+      labelOf={(option) => STATUS_META[option].label}
+      renderChip={(option) => <StatusChip value={option} />}
+      onChange={onChange}
+    />
+  );
+}

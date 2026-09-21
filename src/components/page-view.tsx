@@ -183,6 +183,16 @@ export function PageView({
       ? (issues.find((issue) => issue.id === editing.id) ?? null)
       : null;
 
+  function handlePatch(
+    id: string,
+    patch: { status?: Status; priority?: Priority; effort?: Effort },
+  ) {
+    startTransition(async () => {
+      applyOptimistic({ type: "patch", id, patch });
+      await updateIssueFields(id, patch);
+    });
+  }
+
   function handleReorder(orderedIds: string[]) {
     startTransition(async () => {
       applyOptimistic({ type: "reorder", orderedIds });
@@ -280,6 +290,7 @@ export function PageView({
             sortable={canSort}
             onOpen={(issue) => setEditing({ mode: "edit", id: issue.id })}
             onPreview={(urls, index) => setPreview({ urls, index })}
+            onPatch={handlePatch}
             onReorder={handleReorder}
           />
         ) : (
