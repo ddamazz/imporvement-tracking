@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, CheckCircle2 } from "lucide-react";
 import {
   EFFORTS,
   EFFORT_META,
@@ -134,5 +134,34 @@ export function StatusChipMenu({
       renderChip={(option) => <StatusChip value={option} />}
       onChange={onChange}
     />
+  );
+}
+
+/**
+ * The client's approval: marked issues are the ones cleared to be fixed first.
+ * Sized like the chips beside it so the row's columns stay aligned.
+ */
+export function MarkButton({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={value}
+      title={value ? "Marked \u2014 click to unmark" : "Mark as approved"}
+      onClick={() => onChange(!value)}
+      className={`inline-flex w-[82px] items-center justify-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-5 whitespace-nowrap ring-1 ring-inset transition ${
+        value
+          ? "bg-emerald-100 text-emerald-700 ring-emerald-500/30 dark:bg-emerald-400/15 dark:text-emerald-300 dark:ring-emerald-400/30"
+          : "bg-transparent text-muted ring-line hover:text-text"
+      }`}
+    >
+      <CheckCircle2 size={12} />
+      {value ? "Marked" : "Mark"}
+    </button>
   );
 }

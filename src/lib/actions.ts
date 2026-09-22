@@ -282,7 +282,12 @@ async function syncImages(
 
 export async function updateIssueFields(
   id: string,
-  patch: { priority?: Priority; effort?: Effort; status?: Status },
+  patch: {
+    priority?: Priority;
+    effort?: Effort;
+    status?: Status;
+    marked?: boolean;
+  },
 ) {
   await assertSession();
 
@@ -290,6 +295,7 @@ export async function updateIssueFields(
     priority?: Priority;
     effort?: Effort;
     status?: Status;
+    marked?: boolean;
     updatedAt: Date;
   } = { updatedAt: new Date() };
 
@@ -304,6 +310,10 @@ export async function updateIssueFields(
   if (patch.status !== undefined) {
     if (!isStatus(patch.status)) throw new Error("Invalid status");
     values.status = patch.status;
+  }
+  if (patch.marked !== undefined) {
+    if (typeof patch.marked !== "boolean") throw new Error("Invalid mark");
+    values.marked = patch.marked;
   }
 
   await db.update(issues).set(values).where(eq(issues.id, id));

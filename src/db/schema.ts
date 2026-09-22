@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   pgEnum,
@@ -36,6 +37,8 @@ export const issues = pgTable(
     priority: priorityEnum("priority").notNull().default("medium"),
     effort: effortEnum("effort").notNull().default("medium"),
     status: statusEnum("status").notNull().default("open"),
+    /** The client has approved this one: fix it before the unmarked ones. */
+    marked: boolean("marked").notNull().default(false),
     position: integer("position").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

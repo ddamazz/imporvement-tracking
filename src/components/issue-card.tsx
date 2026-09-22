@@ -11,6 +11,7 @@ import { imageSrc } from "@/lib/images";
 import { EffortChip, PriorityChip, StatusChip } from "./chip";
 import {
   EffortChipMenu,
+  MarkButton,
   PriorityChipMenu,
   StatusChipMenu,
 } from "./chip-menu";
@@ -21,6 +22,7 @@ export type IssuePatch = {
   priority?: Priority;
   effort?: Effort;
   status?: Status;
+  marked?: boolean;
 };
 
 /** Shared card body so list and board rows look identical. */
@@ -129,6 +131,10 @@ export function IssueCardBody({
           ) : null}
           {onPatch ? (
             <>
+              <MarkButton
+                value={issue.marked}
+                onChange={(marked) => onPatch({ marked })}
+              />
               <PriorityChipMenu
                 value={issue.priority}
                 onChange={(priority) => onPatch({ priority })}

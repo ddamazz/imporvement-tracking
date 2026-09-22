@@ -58,7 +58,12 @@ type OptimisticChange =
   | {
       type: "patch";
       id: string;
-      patch: { status?: Status; priority?: Priority; effort?: Effort };
+      patch: {
+        status?: Status;
+        priority?: Priority;
+        effort?: Effort;
+        marked?: boolean;
+      };
     };
 
 function applyChange(
@@ -87,6 +92,8 @@ export function PageView({
   const { view, sort, groupBy } = prefs;
   const [priorityFilter, setPriorityFilter] = useState<Priority[]>([]);
   const [statusFilter, setStatusFilter] = useState<Status[]>([]);
+  // The client's approved set, on its own switch rather than a chip list.
+  const [markedOnly, setMarkedOnly] = useState(false);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [, startTransition] = useTransition();
@@ -155,7 +162,8 @@ export function PageView({
       (issue) =>
         (priorityFilter.length === 0 ||
           priorityFilter.includes(issue.priority)) &&
-        (statusFilter.length === 0 || statusFilter.includes(issue.status)),
+        (statusFilter.length === 0 || statusFilter.includes(issue.status)) &&
+        (!markedOnly || issue.marked),
     );
 
     if (sort === "priority") {
@@ -170,9 +178,10 @@ export function PageView({
       );
     }
     return filtered;
-  }, [order, priorityFilter, statusFilter, sort]);
+  }, [order, priorityFilter, statusFilter, markedOnly, sort]);
 
-  const filterCount = priorityFilter.length + statusFilter.length;
+  const filterCount =
+    priorityFilter.length + statusFilter.length + (markedOnly ? 1 : 0);
   // Reordering a filtered or re-sorted subset would write a misleading order.
   const canSort = sort === "manual" && filterCount === 0;
 
@@ -185,7 +194,12 @@ export function PageView({
 
   function handlePatch(
     id: string,
-    patch: { status?: Status; priority?: Priority; effort?: Effort },
+    patch: {
+      status?: Status;
+      priority?: Priority;
+      effort?: Effort;
+      marked?: boolean;
+    },
   ) {
     startTransition(async () => {
       applyOptimistic({ type: "patch", id, patch });
@@ -246,6 +260,7 @@ export function PageView({
         <FilterMenu
           priorityFilter={priorityFilter}
           statusFilter={statusFilter}
+          markedOnly={markedOnly}
           onTogglePriority={(value) =>
             setPriorityFilter((current) =>
               current.includes(value)
@@ -260,9 +275,11 @@ export function PageView({
                 : [...current, value],
             )
           }
+          onToggleMarked={() => setMarkedOnly((current) => !current)}
           onClear={() => {
             setPriorityFilter([]);
             setStatusFilter([]);
+            setMarkedOnly(false);
           }}
           count={filterCount}
         />
@@ -493,15 +510,19 @@ function Dropdown<T extends string>({
 function FilterMenu({
   priorityFilter,
   statusFilter,
+  markedOnly,
   onTogglePriority,
   onToggleStatus,
+  onToggleMarked,
   onClear,
   count,
 }: {
   priorityFilter: Priority[];
   statusFilter: Status[];
+  markedOnly: boolean;
   onTogglePriority: (value: Priority) => void;
   onToggleStatus: (value: Status) => void;
+  onToggleMarked: () => void;
   onClear: () => void;
   count: number;
 }) {
@@ -530,6 +551,16 @@ function FilterMenu({
     >
       {() => (
         <div className="w-48">
+          <button
+            type="button"
+            onClick={onToggleMarked}
+            aria-pressed={markedOnly}
+            className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-3"
+          >
+            Marked only
+            <Switch on={markedOnly} />
+          </button>
+          <div className="my-1 h-px bg-line" />
           <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-muted">
             Priority
           </p>
@@ -567,6 +598,24 @@ function FilterMenu({
         </div>
       )}
     </Popover>
+  );
+}
+
+/** Reads as on/off, unlike the multi-select check rows below it. */
+function Switch({ on }: { on: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`relative h-4 w-7 shrink-0 rounded-full transition ${
+        on ? "bg-emerald-500" : "bg-surface-3 ring-1 ring-inset ring-line"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 size-3 rounded-full bg-white shadow transition-all ${
+          on ? "left-3.5" : "left-0.5"
+        }`}
+      />
+    </span>
   );
 }
 
